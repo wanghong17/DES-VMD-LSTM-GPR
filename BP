@@ -1,0 +1,119 @@
+from math import sqrt
+from numpy import concatenate
+from matplotlib import pyplot
+from pandas import read_csv
+from pandas import DataFrame
+from pandas import concat
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import matplotlib.colors as mcolors
+from sklearn.model_selection import RandomizedSearchCV,train_test_split
+from sklearn.svm import SVR
+from keras.models import Sequential
+from keras.layers.core import Dense, Activation
+from keras.optimizers import Adam
+
+
+
+dataset = read_csv('ZG118NN.csv')
+
+values = dataset.values
+ymax = values[:, -1].max()
+ymin = values[:, -1].min()
+
+# n_hours = 12
+# n_features = 1
+# #标准化
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled = scaler.fit_transform(values)
+# # # # 构造一个3->1的监督学习型数据
+a = scaled[:, : -1]
+b = scaled[:, -1]
+
+X = a[:, :]
+y = b[:]
+X1 = a[:, :]
+y1 = b[:]
+
+
+
+
+
+sepIndex = 55
+
+
+# reframed = series_to_supervised(scaled, n_hours, 1)
+# #划分Training set and Testing set
+# values = reframed.values
+# n_train_hours = 568
+# train = values[:n_train_hours, :]
+# test = values[n_train_hours:, :]
+# n_obs = n_hours * n_features
+train_X, train_y = X[:sepIndex, :], y[:sepIndex]
+test_X, test_y = X[sepIndex:, :], y[sepIndex:]
+#
+# test_X, test_y = test[:, :n_obs], test[:, -n_features]
+train_X = np.delete(train_X, [0], axis=1)
+test_X = np.delete(test_X, [0], axis=1)
+predictX = np.delete(X1, [0], axis=1)
+predictY = y1
+
+a = np.arange(0, len(test_y), 1)
+input_size = len(train_X[1, :])
+# # #建立模型
+model = Sequential()
+model.add(Dense(12, input_dim=input_size, init = 'uniform'))
+model.add(Activation('relu'))
+# model.add(Dense(18, init = 'uniform'))
+# model.add(Activation('relu'))
+# model.add(Dense(16, init = 'uniform'))
+# model.add(Activation('relu'))
+
+# model.add(Dense(16, init = 'uniform'))
+# model.add(Activation('relu'))
+# model.add(Dense(12, init = 'uniform'))
+# model.add(Activation('relu'))
+# model.add(Dense(6, init = 'uniform'))
+# model.add(Activation('relu'))
+model.add(Dense(4, init = 'uniform'))
+model.add(Activation('relu'))
+
+model.add(Dense(1))
+model.compile(loss='mean_squared_error', optimizer='Adam')
+history = model.fit(train_X, train_y, nb_epoch=2000, batch_size=16,validation_data=(test_X, test_y), verbose=2, shuffle=False)
+
+# # plot history
+pyplot.plot(history.history['loss'], label='train')
+pyplot.plot(history.history['val_loss'], label='test')
+pyplot.legend()
+pyplot.show()
+
+y_pred_comfirmed = model.predict(test_X)
+trainy_hat = model.predict(train_X)
+inv_trainy = trainy_hat*(ymax-ymin) + ymin
+aa = pd.DataFrame(inv_trainy)
+aa.to_excel('ZG110CPRED.xlsx')
+
+inv_train_y = train_y*(ymax-ymin) + ymin
+y_pred = y_pred_comfirmed*(ymax-ymin) + ymin
+bb = pd.DataFrame(y_pred)
+bb.to_excel('ZG110TESTPRED.xlsx')
+test_y = test_y*(ymax-ymin) + ymin
+print('MAE:', mean_absolute_error(y_pred, test_y))
+print('RMSE:', np.sqrt(mean_squared_error(y_pred, test_y)))
+print('R2:', r2_score(y_pred, test_y))
+print(y_pred)
+
+plt.plot(a, y_pred, marker = 'o')
+plt.plot(a, test_y, marker = 's')
+plt.show()
+
+b = np.arange(0, len(trainy_hat), 1)
+plt.plot(b, inv_trainy, marker = 's')
+plt.plot(b, inv_train_y, marker = 'o')
+plt.show()
