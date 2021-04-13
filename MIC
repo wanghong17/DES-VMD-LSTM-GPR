@@ -1,0 +1,16 @@
+import  pandas as pd
+import numpy as np
+from minepy import MINE
+
+dataset = pd.read_csv('MIC.csv')
+data = np.array(dataset)
+C = data[:,-1].flatten()
+X = data[:,2].flatten()
+
+mine = MINE(alpha=0.6, c=15)
+mine.compute_score(X, C)
+
+R = np.corrcoef(X, C)
+
+print("MIC", mine.mic())
+print('R:', R)
