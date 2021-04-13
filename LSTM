@@ -1,0 +1,139 @@
+from math import sqrt
+from numpy import concatenate
+from matplotlib import pyplot
+from pandas import read_csv
+from pandas import DataFrame
+from pandas import concat
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM, Bidirectional
+import pandas as pd
+import matplotlib.pyplot as plt
+
+import numpy as np
+from keras.layers.core import Dense, Dropout, Activation
+
+
+# load dataset
+dataset = read_csv('ZGNNN.csv')
+
+values = dataset.values
+ymax = values[:, -1].max()
+ymin = values[:, -1].min()
+
+# n_hours = 12
+# n_features = 1
+# #标准化
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled = scaler.fit_transform(values)
+# # # # 构造一个3->1的监督学习型数据
+a = scaled[:, : -1]
+b = scaled[:, -1]
+
+X = a[:, :]
+y = b[:]
+X1 = a[:, :]
+y1 = b[:]
+
+sepIndex = 55
+
+
+# reframed = series_to_supervised(scaled, n_hours, 1)
+# #划分Training set and Testing set
+# values = reframed.values
+# n_train_hours = 568
+# train = values[:n_train_hours, :]
+# test = values[n_train_hours:, :]
+# n_obs = n_hours * n_features
+train_X, train_y = X[:sepIndex, :], y[:sepIndex]
+test_X, test_y = X[sepIndex:, :], y[sepIndex:]
+#
+# test_X, test_y = test[:, :n_obs], test[:, -n_features]
+train_X = np.delete(train_X, [0], axis=1)
+test_X = np.delete(test_X, [0], axis=1)
+predictX = np.delete(X1, [0], axis=1)
+predictY = y1
+pre_time = train_X.shape[1]
+
+
+# print(train_X.shape, len(train_X), train_y.shape)
+# 将数据转换为3D输入，timesteps=3，3条数据预测1条 [samples, timesteps, features]
+train_X = train_X.reshape((train_X.shape[0], 1, pre_time))
+predictX = predictX.reshape((predictX.shape[0], 1, pre_time))
+test_X = test_X.reshape((test_X.shape[0], 1, pre_time))
+print(test_X)
+# print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+#
+# # 设计网络
+model = Sequential()
+# model.add(LSTM(24, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+# #
+# model.add(LSTM(20, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+# # # # # # # # # #
+# model.add(LSTM(16, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+# # # # # # # #
+# model.add(LSTM(12, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+#
+model.add(LSTM(6, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+
+model.add(LSTM(4, input_shape=(train_X.shape[1], train_X.shape[2])))
+
+model.add(Dense(1))
+model.compile(loss='mean_squared_error', optimizer='Adam')
+model.summary()
+# # # # 拟合网络
+history = model.fit(train_X, train_y, epochs=1000, batch_size=16, validation_data=(test_X, test_y), verbose=2, shuffle=False)
+# # plot history
+pyplot.plot(history.history['loss'], label='train')
+pyplot.plot(history.history['val_loss'], label='test')
+pyplot.legend()
+pyplot.show()
+
+# # 执行预测
+trainy_hat = model.predict(train_X)
+inv_trainy = trainy_hat*(ymax-ymin) + ymin
+aa = pd.DataFrame(inv_trainy)
+aa.to_excel('ZG110CPRED.xlsx')
+inv_train_y = train_y*(ymax-ymin) + ymin
+yhat = model.predict(test_X)
+inv_yhat = yhat*(ymax-ymin) + ymin
+bb = pd.DataFrame(inv_yhat)
+bb.to_excel('ZG110TESTPRED.xlsx')
+inv_y = test_y*(ymax-ymin) + ymin
+# # 计算RMSE误差值
+rmse = np.sqrt(mean_squared_error(inv_y, inv_yhat))
+R = r2_score(inv_yhat, inv_y)
+mae = mean_absolute_error(inv_y, inv_yhat)
+print('Test RMSE: %.3f' % rmse)
+print('R2: %.3f' % R)
+print('MAE: %.3f' % mae)
+print(inv_yhat)
+print(inv_y)
+#plot
+a = np.arange(0, len(inv_y), 1)
+b = np.arange(0, len(trainy_hat), 1)
+plt.plot(a, inv_y, marker = 'o')
+plt.plot(a, inv_yhat, marker = 's')
+plt.show()
+
+plt.plot(b, inv_trainy, marker = 's')
+plt.plot(b, inv_train_y, marker = 'o')
+plt.show()
+
+# #预测
+# y_predictx_pred = model.predict(predictX)
+# inv_y_predictx_pred = y_predictx_pred*(ymax-ymin) + ymin
+# inv_predicty = predictY*(ymax-ymin) + ymin
+#
+# c = np.arange(0, len(predictY), 1)
+#
+# plt.plot(c, inv_predicty, marker = 'o')
+# plt.plot(c, inv_y_predictx_pred, marker = 's')
+# plt.show()
+#
+# print('MAE:', mean_absolute_error(inv_y_predictx_pred, inv_predicty))
+# print('RMSE:', np.sqrt(mean_squared_error(inv_y_predictx_pred, inv_predicty)))
+# print('R2:', r2_score(inv_y_predictx_pred, inv_predicty))
