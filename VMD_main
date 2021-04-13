@@ -1,5 +1,5 @@
 import numpy as np
-from VMD_dec import VMD
+from DES_VMD_LSTM_GPR import VMD
 import matplotlib.pyplot as plt
 import pandas as pd
 
